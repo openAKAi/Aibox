@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充电桩 + 光伏投资测算工具 🧅</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .card h2 {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: #00d9ff;
+            border-bottom: 2px solid rgba(0,217,255,0.3);
+            padding-bottom: 10px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 1em;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+        
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .result-label {
+            color: #aaa;
+        }
+        
+        .result-value {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .result-value.positive {
+            color: #00ff88;
+        }
+        
+        .result-value.negative {
+            color: #ff4757;
+        }
+        
+        .result-value.highlight {
+            color: #00d9ff;
+            font-size: 1.4em;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        .preset-btn.optimistic {
+            background: linear-gradient(135deg, #00ff88, #00d9ff);
+            color: #1a1a2e;
+        }
+        
+        .preset-btn.conservative {
+            background: linear-gradient(135deg, #ff9f43, #ff6b6b);
+            color: #1a1a2e;
+        }
+        
+        .preset-btn.pessimistic {
+            background: linear-gradient(135deg, #576574, #8395a7);
+            color: #fff;
+        }
+        
+        .preset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .warning {
+            background: rgba(255,159,67,0.2);
+            border: 1px solid #ff9f43;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .warning-title {
+            color: #ff9f43;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .range-slider {
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        .range-value {
+            text-align: right;
+            font-size: 0.85em;
+            color: #00d9ff;
+            margin-top: 3px;
+        }
+        
+        .breakeven-chart {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔌 充电桩 + 光伏投资测算工具</h1>
+            <p class="subtitle">交易员专用 | 实时敏感性分析 | 风险调整收益</p>
+        </header>
+        
+        <div class="grid">
+            <!-- 基础投资参数 -->
+            <div class="card">
+                <h2>📊 基础投资参数</h2>
+                <div class="input-group">
+                    <label>总投资额（万元）</label>
+                    <input type="number" id="totalInvestment" value="100" step="10">
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>充电桩投资（万元）</label>
+                        <input type="number" id="chargingInvestment" value="60" step="5">
+                    </div>
+                    <div class="input-group">
+                        <label>光伏投资（万元）</label>
+                        <input type="number" id="pvInvestment" value="40" step="5">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>充电桩数量（台）</label>
+                    <input type="number" id="chargerCount" value="10" step="1">
+                </div>
+                <div class="input-group">
+                    <label>单桩功率（kW）</label>
+                    <input type="number" id="chargerPower" value="120" step="10">
+                </div>
+                <div class="input-group">
+                    <label>光伏装机容量（kW）</label>
+                    <input type="number" id="pvCapacity" value="200" step="10">
+                </div>
+            </div>
+            
+            <!-- 运营参数 -->
+            <div class="card">
+                <h2>⚙️ 运营参数</h2>
+                <div class="input-group">
+                    <label>利用率（%）</label>
+                    <input type="range" id="utilizationRate" class="range-slider" value="15" min="5" max="50" step="1">
+                    <div class="range-value"><span id="utilizationRateValue">15</span>%</div>
+                </div>
+                <div class="input-group">
+                    <label>服务费（元/kWh）</label>
+                    <input type="number" id="serviceFee" value="0.25" step="0.05" min="0.1" max="0.6">
+                </div>
+                <div class="input-group">
+                    <label>电费差价（元/kWh）</label>
+                    <input type="number" id="electricityMargin" value="0.25" step="0.05" min="0.1" max="0.5">
+                </div>
+                <div class="input-group">
+                    <label>场地分成比例（%）</label>
+                    <input type="range" id="siteCommission" class="range-slider" value="25" min="10" max="40" step="1">
+                    <div class="range-value"><span id="siteCommissionValue">25</span>%</div>
+                </div>
+                <div class="input-group">
+                    <label>平台服务费（%）</label>
+                    <input type="number" id="platformFee" value="5" step="1" min="0" max="15">
+                </div>
+            </div>
+            
+            <!-- 成本参数 -->
+            <div class="card">
+                <h2>💰 成本参数</h2>
+                <div class="input-group">
+                    <label>运维成本（设备投资%/年）</label>
+                    <input type="number" id="maintenanceRate" value="3" step="0.5" min="1" max="10">
+                </div>
+                <div class="input-group">
+                    <label>保险/杂费（万元/年）</label>
+                    <input type="number" id="insuranceCost" value="2" step="0.5" min="0" max="10">
+                </div>
+                <div class="input-group">
+                    <label>设备折旧年限（年）</label>
+                    <input type="number" id="depreciationYears" value="5" step="1" min="3" max="10">
+                </div>
+                <div class="input-group">
+                    <label>资金成本/贷款利率（%）</label>
+                    <input type="number" id="interestRate" value="6" step="0.5" min="0" max="15">
+                </div>
+                <div class="input-group">
+                    <label>贷款比例（%）</label>
+                    <input type="range" id="loanRatio" class="range-slider" value="0" min="0" max="80" step="5">
+                    <div class="range-value"><span id="loanRatioValue">0</span>%</div>
+                </div>
+            </div>
+            
+            <!-- 光伏参数 -->
+            <div class="card">
+                <h2>☀️ 光伏参数</h2>
+                <div class="input-group">
+                    <label>年等效利用小时数（h）</label>
+                    <input type="number" id="pvHours" value="1200" step="50" min="800" max="1600">
+                </div>
+                <div class="input-group">
+                    <label>自用比例（%）</label>
+                    <input type="range" id="pvSelfUseRatio" class="range-slider" value="80" min="50" max="100" step="5">
+                    <div class="range-value"><span id="pvSelfUseRatioValue">80</span>%</div>
+                </div>
+                <div class="input-group">
+                    <label>峰值电价（元/kWh）</label>
+                    <input type="number" id="peakElectricityPrice" value="0.8" step="0.1" min="0.5" max="1.5">
+                </div>
+                <div class="input-group">
+                    <label>上网电价（元/kWh）</label>
+                    <input type="number" id="gridFeedPrice" value="0.4" step="0.05" min="0.2" max="0.6">
+                </div>
+                <div class="input-group">
+                    <label>光伏衰减率（%/年）</label>
+                    <input type="number" id="pvDegradation" value="0.5" step="0.1" min="0" max="2">
+                </div>
+            </div>
+        </div>
+        
+        <!-- 预设情景按钮 -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>🎯 快速预设情景</h2>
+            <button class="preset-btn optimistic" onclick="applyPreset('optimistic')">😄 乐观情景</button>
+            <button class="preset-btn conservative" onclick="applyPreset('conservative')">😐 保守情景</button>
+            <button class="preset-btn pessimistic" onclick="applyPreset('pessimistic')">😰 悲观情景</button>
+        </div>
+        
+        <div class="chart-row">
+            <!-- 核心结果 -->
+            <div class="card">
+                <h2>📈 核心结果</h2>
+                <div class="result-item">
+                    <span class="result-label">年总收入</span>
+                    <span class="result-value positive" id="annualRevenue">0 万元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">年运营成本</span>
+                    <span class="result-value negative" id="annualCost">0 万元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">年净现金流</span>
+                    <span class="result-value highlight" id="annualCashflow">0 万元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">静态回本周期</span>
+                    <span class="result-value highlight" id="paybackPeriod">0 年</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">IRR（内部收益率）</span>
+                    <span class="result-value highlight" id="irr">0%</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">风险调整后 IRR</span>
+                    <span class="result-value" id="riskAdjustedIrr">0%</span>
+                </div>
+                
+                <div class="warning" id="warningBox">
+                    <div class="warning-title">⚠️ 风险提示</div>
+                    <div id="warningText">当前利用率低于行业平均水平，请谨慎评估选址风险。</div>
+                </div>
+            </div>
+            
+            <!-- 收入成本结构 -->
+            <div class="card">
+                <h2>📊 收入成本结构</h2>
+                <div class="chart-container">
+                    <canvas id="structureChart"></canvas>
+                </div>
+                <div style="margin-top: 20px;">
+                    <div class="result-item">
+                        <span class="result-label">充电服务收入</span>
+                        <span class="result-value" id="chargingServiceRevenue">0 万元</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">电费差价收入</span>
+                        <span class="result-value" id="electricityMarginRevenue">0 万元</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">光伏自用节省</span>
+                        <span class="result-value" id="pvSelfSave">0 万元</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">余电上网收入</span>
+                        <span class="result-value" id="pvGridRevenue">0 万元</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 敏感性分析 -->
+        <div class="chart-row">
+            <div class="card">
+                <h2>📉 利用率敏感性分析</h2>
+                <div class="chart-container">
+                    <canvas id="sensitivityChart"></canvas>
+                </div>
+                <div class="breakeven-chart">
+                    <div class="result-item">
+                        <span class="result-label">盈亏平衡利用率</span>
+                        <span class="result-value highlight" id="breakevenUtilization">0%</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">当前安全边际</span>
+                        <span class="result-value" id="safetyMargin">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📊 现金流预测（5 年）</h2>
+                <div class="chart-container">
+                    <canvas id="cashflowChart"></canvas>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div class="result-item">
+                        <span class="result-label">5 年累计现金流</span>
+                        <span class="result-value positive" id="cumulativeCashflow5y">0 万元</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">5 年累计净利润</span>
+                        <span class="result-value" id="cumulativeProfit5y">0 万元</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量存储图表实例
+        let structureChart, sensitivityChart, cashflowChart;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定滑块事件
+            document.getElementById('utilizationRate').addEventListener('input', function() {
+                document.getElementById('utilizationRateValue').textContent = this.value;
+                calculate();
+            });
+            
+            document.getElementById('siteCommission').addEventListener('input', function() {
+                document.getElementById('siteCommissionValue').textContent = this.value;
+                calculate();
+            });
+            
+            document.getElementById('pvSelfUseRatio').addEventListener('input', function() {
+                document.getElementById('pvSelfUseRatioValue').textContent = this.value;
+                calculate();
+            });
+            
+            document.getElementById('loanRatio').addEventListener('input', function() {
+                document.getElementById('loanRatioValue').textContent = this.value;
+                calculate();
+            });
+            
+            // 绑定所有输入框事件
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculate);
+            });
+            
+            // 初始化图表
+            initCharts();
+            
+            // 首次计算
+            calculate();
+        });
+        
+        // 预设情景
+        function applyPreset(type) {
+            const presets = {
+                optimistic: {
+                    utilizationRate: 35,
+                    serviceFee: 0.4,
+                    electricityMargin: 0.3,
+                    siteCommission: 15,
+                    platformFee: 4,
+                    pvHours: 1400,
+                    pvSelfUseRatio: 90
+                },
+                conservative: {
+                    utilizationRate: 15,
+                    serviceFee: 0.25,
+                    electricityMargin: 0.25,
+                    siteCommission: 25,
+                    platformFee: 5,
+                    pvHours: 1200,
+                    pvSelfUseRatio: 80
+                },
+                pessimistic: {
+                    utilizationRate: 8,
+                    serviceFee: 0.2,
+                    electricityMargin: 0.15,
+                    siteCommission: 35,
+                    platformFee: 8,
+                    pvHours: 1000,
+                    pvSelfUseRatio: 60
+                }
+            };
+            
+            const preset = presets[type];
+            document.getElementById('utilizationRate').value = preset.utilizationRate;
+            document.getElementById('utilizationRateValue').textContent = preset.utilizationRate;
+            document.getElementById('serviceFee').value = preset.serviceFee;
+            document.getElementById('electricityMargin').value = preset.electricityMargin;
+            document.getElementById('siteCommission').value = preset.siteCommission;
+            document.getElementById('siteCommissionValue').textContent = preset.siteCommission;
+            document.getElementById('platformFee').value = preset.platformFee;
+            document.getElementById('pvHours').value = preset.pvHours;
+            document.getElementById('pvSelfUseRatio').value = preset.pvSelfUseRatio;
+            document.getElementById('pvSelfUseRatioValue').textContent = preset.pvSelfUseRatio;
+            
+            calculate();
+        }
+        
+        // 初始化图表
+        function initCharts() {
+            // 收入成本结构图
+            const structureCtx = document.getElementById('structureChart').getContext('2d');
+            structureChart = new Chart(structureCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['充电服务费', '电费差价', '光伏自用', '余电上网', '场地分成', '运维', '平台费', '其他'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#00d9ff', '#00ff88', '#ffd93d', '#ff9f43',
+                            '#ff6b6b', '#5f27cd', '#48dbfb', '#8395a7'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#e0e0e0' }
+                        }
+                    }
+                }
+            });
+            
+            // 敏感性分析图
+            const sensitivityCtx = document.getElementById('sensitivityChart').getContext('2d');
+            sensitivityChart = new Chart(sensitivityCtx, {
+                type: 'line',
+                data: {
+                    labels: ['5%', '10%', '15%', '20%', '25%', '30%', '35%', '40%'],
+                    datasets: [{
+                        label: '年净现金流（万元）',
+                        data: [],
+                        borderColor: '#00d9ff',
+                        backgroundColor: 'rgba(0, 217, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e0e0e0' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: '#aaa' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#aaa' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    }
+                }
+            });
+            
+            // 现金流预测图
+            const cashflowCtx = document.getElementById('cashflowChart').getContext('2d');
+            cashflowChart = new Chart(cashflowCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['第 1 年', '第 2 年', '第 3 年', '第 4 年', '第 5 年'],
+                    datasets: [{
+                        label: '年净现金流（万元）',
+                        data: [],
+                        backgroundColor: 'rgba(0, 217, 255, 0.6)',
+                        borderColor: '#00d9ff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e0e0e0' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: '#aaa' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#aaa' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 核心计算函数
+        function calculate() {
+            // 获取输入值
+            const totalInvestment = parseFloat(document.getElementById('totalInvestment').value) * 10000;
+            const chargingInvestment = parseFloat(document.getElementById('chargingInvestment').value) * 10000;
+            const pvInvestment = parseFloat(document.getElementById('pvInvestment').value) * 10000;
+            const chargerCount = parseFloat(document.getElementById('chargerCount').value);
+            const chargerPower = parseFloat(document.getElementById('chargerPower').value);
+            const pvCapacity = parseFloat(document.getElementById('pvCapacity').value);
+            
+            const utilizationRate = parseFloat(document.getElementById('utilizationRate').value) / 100;
+            const serviceFee = parseFloat(document.getElementById('serviceFee').value);
+            const electricityMargin = parseFloat(document.getElementById('electricityMargin').value);
+            const siteCommission = parseFloat(document.getElementById('siteCommission').value) / 100;
+            const platformFee = parseFloat(document.getElementById('platformFee').value) / 100;
+            
+            const maintenanceRate = parseFloat(document.getElementById('maintenanceRate').value) / 100;
+            const insuranceCost = parseFloat(document.getElementById('insuranceCost').value) * 10000;
+            const depreciationYears = parseFloat(document.getElementById('depreciationYears').value);
+            const interestRate = parseFloat(document.getElementById('interestRate').value) / 100;
+            const loanRatio = parseFloat(document.getElementById('loanRatio').value) / 100;
+            
+            const pvHours = parseFloat(document.getElementById('pvHours').value);
+            const pvSelfUseRatio = parseFloat(document.getElementById('pvSelfUseRatio').value) / 100;
+            const peakElectricityPrice = parseFloat(document.getElementById('peakElectricityPrice').value);
+            const gridFeedPrice = parseFloat(document.getElementById('gridFeedPrice').value);
+            const pvDegradation = parseFloat(document.getElementById('pvDegradation').value) / 100;
+            
+            // 计算收入
+            const annualChargingHours = 365 * 24 * utilizationRate;
+            const chargingServiceRevenue = chargerCount * annualChargingHours * chargerPower * serviceFee;
+            const electricityMarginRevenue = chargerCount * annualChargingHours * chargerPower * electricityMargin;
+            
+            const pvGeneration = pvCapacity * pvHours;
+            const pvSelfSave = pvGeneration * pvSelfUseRatio * peakElectricityPrice;
+            const pvGridRevenue = pvGeneration * (1 - pvSelfUseRatio) * gridFeedPrice;
+            
+            const annualRevenue = chargingServiceRevenue + electricityMarginRevenue + pvSelfSave + pvGridRevenue;
+            
+            // 计算成本
+            const totalRevenue = chargingServiceRevenue + electricityMarginRevenue; // 场地分成基数
+            const siteCommissionCost = totalRevenue * siteCommission;
+            const platformFeeCost = totalRevenue * platformFee;
+            const maintenanceCost = (chargingInvestment + pvInvestment) * maintenanceRate;
+            const interestCost = totalInvestment * loanRatio * interestRate;
+            const depreciationCost = (chargingInvestment + pvInvestment) / depreciationYears;
+            
+            const annualOperatingCost = siteCommissionCost + platformFeeCost + maintenanceCost + insuranceCost + interestCost;
+            const annualTotalCost = annualOperatingCost + depreciationCost;
+            
+            // 净现金流（不考虑折旧，因为折旧是非现金支出）
+            const annualCashflow = annualRevenue - annualOperatingCost;
+            
+            // 回本周期
+            const paybackPeriod = totalInvestment / annualCashflow;
+            
+            // IRR 计算（简化版，5 年期）
+            const irr = calculateIRR(totalInvestment, annualCashflow, 5);
+            
+            // 风险调整后 IRR（打 5 折）
+            const riskAdjustedIrr = irr * 0.5;
+            
+            // 更新显示
+            document.getElementById('annualRevenue').textContent = (annualRevenue / 10000).toFixed(1) + ' 万元';
+            document.getElementById('annualCost').textContent = (annualOperatingCost / 10000).toFixed(1) + ' 万元';
+            document.getElementById('annualCashflow').textContent = (annualCashflow / 10000).toFixed(1) + ' 万元';
+            document.getElementById('paybackPeriod').textContent = paybackPeriod.toFixed(2) + ' 年';
+            document.getElementById('irr').textContent = (irr * 100).toFixed(1) + '%';
+            document.getElementById('riskAdjustedIrr').textContent = (riskAdjustedIrr * 100).toFixed(1) + '%';
+            
+            // 更新明细
+            document.getElementById('chargingServiceRevenue').textContent = (chargingServiceRevenue / 10000).toFixed(1) + ' 万元';
+            document.getElementById('electricityMarginRevenue').textContent = (electricityMarginRevenue / 10000).toFixed(1) + ' 万元';
+            document.getElementById('pvSelfSave').textContent = (pvSelfSave / 10000).toFixed(1) + ' 万元';
+            document.getElementById('pvGridRevenue').textContent = (pvGridRevenue / 10000).toFixed(1) + ' 万元';
+            
+            // 更新图表
+            updateStructureChart(chargingServiceRevenue, electricityMarginRevenue, pvSelfSave, pvGridRevenue,
+                               siteCommissionCost, maintenanceCost, platformFeeCost, insuranceCost + interestCost);
+            updateSensitivityChart(chargerCount, chargerPower, serviceFee, electricityMargin, siteCommission,
+                                  platformFee, maintenanceRate, insuranceCost, interestCost, loanRatio, totalInvestment,
+                                  pvCapacity, pvHours, pvSelfUseRatio, peakElectricityPrice, gridFeedPrice);
+            updateCashflowChart(annualCashflow, pvDegradation, maintenanceRate, chargingInvestment, pvInvestment);
+            
+            // 计算累计现金流
+            let cumulative = 0;
+            for (let year = 1; year <= 5; year++) {
+                const yearCashflow = annualCashflow * Math.pow(1 - pvDegradation, year - 1);
+                cumulative += yearCashflow;
+            }
+            document.getElementById('cumulativeCashflow5y').textContent = (cumulative / 10000).toFixed(1) + ' 万元';
+            document.getElementById('cumulativeProfit5y').textContent = ((cumulative - totalInvestment) / 10000).toFixed(1) + ' 万元';
+            
+            // 风险提示
+            updateWarning(utilizationRate, paybackPeriod, siteCommission);
+        }
+        
+        // IRR 计算（牛顿法近似）
+        function calculateIRR(initialInvestment, annualCashflow, years) {
+            // 简化：假设每年现金流相同
+            let irr = 0.1; // 初始猜测 10%
+            for (let i = 0; i < 20; i++) {
+                let npv = -initialInvestment;
+                for (let year = 1; year <= years; year++) {
+                    npv += annualCashflow / Math.pow(1 + irr, year);
+                }
+                // 牛顿法更新
+                let derivative = 0;
+                for (let year = 1; year <= years; year++) {
+                    derivative -= year * annualCashflow / Math.pow(1 + irr, year + 1);
+                }
+                irr = irr - npv / derivative;
+                if (Math.abs(npv) < 1) break;
+            }
+            return Math.max(0, irr);
+        }
+        
+        // 更新结构图
+        function updateStructureChart(serviceRev, marginRev, pvSelf, pvGrid, siteCost, maintCost, platformCost, otherCost) {
+            structureChart.data.datasets[0].data = [
+                serviceRev, marginRev, pvSelf, pvGrid,
+                siteCost, maintCost, platformCost, otherCost
+            ];
+            structureChart.update();
+        }
+        
+        // 更新敏感性分析图
+        function updateSensitivityChart(chargerCount, chargerPower, serviceFee, electricityMargin, siteCommission,
+                                       platformFee, maintenanceRate, insuranceCost, interestCost, loanRatio, totalInvestment,
+                                       pvCapacity, pvHours, pvSelfUseRatio, peakElectricityPrice, gridFeedPrice) {
+            const rates = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40];
+            const cashflows = [];
+            
+            rates.forEach(rate => {
+                const annualChargingHours = 365 * 24 * rate;
+                const chargingServiceRevenue = chargerCount * annualChargingHours * chargerPower * serviceFee;
+                const electricityMarginRevenue = chargerCount * annualChargingHours * chargerPower * electricityMargin;
+                const totalRevenue = chargingServiceRevenue + electricityMarginRevenue;
+                
+                const pvGeneration = pvCapacity * pvHours;
+                const pvSelfSave = pvGeneration * pvSelfUseRatio * peakElectricityPrice;
+                const pvGridRevenue = pvGeneration * (1 - pvSelfUseRatio) * gridFeedPrice;
+                
+                const annualRevenue = chargingServiceRevenue + electricityMarginRevenue + pvSelfSave + pvGridRevenue;
+                
+                const siteCommissionCost = totalRevenue * siteCommission;
+                const platformFeeCost = totalRevenue * platformFee;
+                const maintenanceCost = totalInvestment * 10000 * maintenanceRate;
+                const interestCostCalc = totalInvestment * loanRatio * interestCost;
+                
+                const annualOperatingCost = siteCommissionCost + platformFeeCost + maintenanceCost + insuranceCost + interestCostCalc;
+                const annualCashflow = annualRevenue - annualOperatingCost;
+                
+                cashflows.push(annualCashflow / 10000);
+            });
+            
+            sensitivityChart.data.datasets[0].data = cashflows;
+            sensitivityChart.update();
+            
+            // 计算盈亏平衡点
+            let breakevenRate = 0;
+            for (let i = 0; i < cashflows.length - 1; i++) {
+                if (cashflows[i] < 0 && cashflows[i + 1] >= 0) {
+                    breakevenRate = rates[i] + (rates[i + 1] - rates[i]) * (0 - cashflows[i]) / (cashflows[i + 1] - cashflows[i]);
+                    break;
+                }
+            }
+            if (cashflows[0] >= 0) breakevenRate = 0.05;
+            if (cashflows[cashflows.length - 1] < 0) breakevenRate = 0.45;
+            
+            document.getElementById('breakevenUtilization').textContent = (breakevenRate * 100).toFixed(1) + '%';
+            
+            const currentRate = parseFloat(document.getElementById('utilizationRate').value) / 100;
+            const safetyMargin = ((currentRate - breakevenRate) / currentRate * 100);
+            const safetyMarginEl = document.getElementById('safetyMargin');
+            safetyMarginEl.textContent = safetyMargin.toFixed(1) + '%';
+            safetyMarginEl.className = 'result-value ' + (safetyMargin > 30 ? 'positive' : safetyMargin > 10 ? '' : 'negative');
+        }
+        
+        // 更新现金流预测图
+        function updateCashflowChart(baseCashflow, pvDegradation, maintenanceRate, chargingInvestment, pvInvestment) {
+            const cashflows = [];
+            for (let year = 1; year <= 5; year++) {
+                // 考虑光伏衰减和运维成本上升
+                const degradationFactor = Math.pow(1 - pvDegradation, year - 1);
+                const maintenanceIncrease = 1 + (year - 1) * 0.02; // 每年运维成本增加 2%
+                const yearCashflow = baseCashflow * degradationFactor / maintenanceIncrease;
+                cashflows.push(yearCashflow / 10000);
+            }
+            
+            cashflowChart.data.datasets[0].data = cashflows;
+            cashflowChart.update();
+        }
+        
+        // 更新风险提示
+        function updateWarning(utilizationRate, paybackPeriod, siteCommission) {
+            const warningBox = document.getElementById('warningBox');
+            const warningText = document.getElementById('warningText');
+            
+            const warnings = [];
+            
+            if (utilizationRate < 0.12) {
+                warnings.push('⚠️ 利用率低于行业平均（12-18%），选址风险高');
+            }
+            if (paybackPeriod > 5) {
+                warnings.push('⚠️ 回本周期超过 5 年，收益率偏低');
+            }
+            if (siteCommission > 0.30) {
+                warnings.push('⚠️ 场地分成超过 30%，利润被严重挤压');
+            }
+            if (utilizationRate < 0.08) {
+                warnings.push('🚨 利用率低于 8%，项目可能亏损！');
+            }
+            
+            if (warnings.length > 0) {
+                warningBox.style.display = 'block';
+                warningText.innerHTML = warnings.join('<br>');
+            } else {
+                warningBox.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
